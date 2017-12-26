@@ -1,0 +1,167 @@
+BROKER SCHEMA CommonExceptions
+/*
+	This code is used to handle exception handling for all flows
+*/
+
+CREATE COMPUTE MODULE Common_ExceptionFlow
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyMessageHeaders();
+		DECLARE domainName , failureData CHARACTER;
+		SET domainName = FIELDNAME(InputRoot.*);
+		IF domainName = 'BLOB' THEN
+			SET failureData = CAST(InputRoot.BLOB.BLOB AS CHARACTER CCSID 1208);
+		END IF;
+		DECLARE TIMESTAMP_FORMAT CHARACTER 'yyyy-MM-dd''T''HH:mm:ss.SSSSSS';
+		DECLARE ccsid INTEGER 1208;
+		DECLARE envarea REFERENCE TO Environment;
+		DECLARE envvar REFERENCE TO Environment.Variables;
+		IF NOT LASTMOVE(envvar) THEN
+			CREATE LASTCHILD OF Environment AS envvar NAME 'Variables';
+		END IF;
+		SET envvar.FData = failureData;--Environment.Variables.FData
+		SET envvar.EXCSTATUS = TRUE;
+		IF EXISTS(envvar.TransStatus[]) THEN
+			SET envvar.TransStatus = envvar.TransStatus||'-'||'EXC';
+		ELSE
+			SET envvar.TransStatus = 'EXC';
+		END IF;
+		DECLARE envTransArea REFERENCE TO Environment.TxnData.transactionDetails;
+		DECLARE envTraceRef REFERENCE TO envvar.TraceFileExc;
+		CALL getFlowDetails(InputRoot);
+		SET envvar.SenderRef							=	COALESCE(envvar.SenderRef, '999999999999');
+		SET envvar.TraceFileExc.exceptionTime			=	CAST(CURRENT_TIMESTAMP AS CHARACTER FORMAT 'I');
+		SET envvar.TraceFileExc.errorCodeDescription	=	getExceptionDesc(InputRoot, OutputRoot, InputExceptionList);
+		/**
+		* Customizing UserException  
+		**/
+		IF CONTAINS(envvar.TraceFileExc.errorType, 'UserException')  THEN
+			SET envvar.TraceFileExc.errorCode			=	envvar.ErrorCode;
+		ELSE
+			SET envvar.TraceFileExc.errorCode			=	CAST(COALESCE(envvar.TraceFileExc.errorCode,'99') AS CHARACTER);
+			SET envvar.ErrorCode						=	envvar.TraceFileExc.errorCode;		
+		END IF;
+		--SET envvar.ErrorMsg								=	CAST(COALESCE(envvar.TraceFileExc.errorCodeDescription,'99') AS CHARACTER);
+		IF NOT CONTAINS(envvar.TraceFileExc.errorType, 'ParserException')  THEN
+			--DECLARE payload CHARACTER getPayloadString(InputBody, Environment);	
+		END IF;
+		--CALL originalMsg(ccsid, InputRoot);
+	/*	
+		DECLARE CR CHARACTER CAST(CAST('X''0A''' AS BLOB) AS CHARACTER CCSID 1208);
+		SET Environment.mailBody = 'Dear Team,'||CR||'The Transaction is failed because of the below exception:'||CR||Environment.Variables.TraceFileExc.errorCodeDescription||'.';
+	*/	
+		RETURN TRUE;
+	END;
+	
+	CREATE PROCEDURE originalMsg (IN ccsid INTEGER, IN InputRoot REFERENCE)
+	BEGIN
+		DECLARE domainFldName CHARACTER FIELDNAME(InputBody);
+		IF domainFldName='MRM' THEN
+			SET Environment.Variables.TraceFileExc.originalMessage=InputRoot.MRM;
+		ELSEIF domainFldName='XMLNSC' THEN
+			SET Environment.Variables.TraceFileExc.originalMessage=CAST(ASBITSTREAM(InputRoot.XMLNSC CCSID ccsid) AS CHARACTER CCSID ccsid);
+		ELSEIF domainFldName='SOAP' THEN
+			SET Environment.Variables.TraceFileExc.originalMessage=CAST(ASBITSTREAM(InputRoot.SOAP CCSID ccsid) AS CHARACTER CCSID ccsid);
+		ELSEIF domainFldName='BLOB' THEN
+			SET Environment.Variables.TraceFileExc.originalMessage=CAST(ASBITSTREAM(InputRoot.BLOB CCSID ccsid) AS CHARACTER CCSID ccsid);
+		ELSEIF domainFldName='DFDL' THEN
+			SET Environment.Variables.TraceFileExc.originalMessage=CAST(ASBITSTREAM(InputRoot.DFDL CCSID ccsid) AS CHARACTER CCSID ccsid);
+		END IF;
+	END;	
+	
+	CREATE PROCEDURE getFlowDetails(IN InputRoot REFERENCE)
+	BEGIN
+		--Taking messge flow details
+		--Taking message flow name , node name
+		DECLARE envvar REFERENCE TO Environment.Variables;
+		DECLARE nodeName CHARACTER;
+		DECLARE label CHARACTER;
+		DECLARE flowName, flowNameone, flowNametwo CHARACTER;
+		DECLARE fieldPosition INTEGER;
+		DECLARE excListRef REFERENCE TO InputExceptionList.*[1];
+		SET label  			=  excListRef.Label;
+		SET flowNameone  	=  excListRef.Name;
+		SET fieldPosition  	=  POSITION('.' IN label);
+		SET flowName 	= SUBSTRING(label BEFORE '.');
+		IF flowName = NULL OR TRIM(flowName) = ''  THEN
+			SET flowName = SUBSTRING(flowNameone BEFORE '#');
+		END IF;
+		SET nodeName = SUBSTRING(label FROM (fieldPosition+1));
+		SET envvar.TraceFileExc.flowName 		= flowName;
+		SET envvar.TraceFileExc.nodeName 		= nodeName;
+	END;
+
+CREATE PROCEDURE getExceptionDesc (IN InputRoot REFERENCE, IN OutputRoot REFERENCE, IN InputExceptionList REFERENCE)
+RETURNS CHAR
+BEGIN
+ --Copy the exception description
+	 DECLARE continueLoop BOOLEAN TRUE;
+	 DECLARE exceptionData CHAR;
+	 DECLARE messageText CHARACTER '';
+	 DECLARE envvar REFERENCE TO Environment.Variables;
+	 DECLARE inRef2 REFERENCE TO InputExceptionList.*[1];
+	 DECLARE insertRef REFERENCE TO InputExceptionList.*[1];
+	 DECLARE exceptionName CHARACTER '';
+	 SET continueLoop  =  TRUE;
+	 MOVE inRef2 TO InputExceptionList;
+	  IF CARDINALITY(inRef2.RecoverableException[])  =  0 THEN
+	   SET continueLoop  =  FALSE;
+	 END IF;
+	 SET inRef2 = InputExceptionList.*[1];
+	 WHILE lastmove(inRef2) AND continueLoop DO
+	  IF inRef2.Number is not null THEN
+	  	  SET envvar.TraceFileExc.errorCode = inRef2.Number;
+  	      SET exceptionName = FIELDNAME(inRef2);
+  	      IF stringValidation(inRef2.Text) THEN
+  	      	SET messageText  = messageText||' '||inRef2.Text;
+  	      END IF;
+          MOVE insertRef TO inRef2.Insert[>];
+          WHILE LASTMOVE(insertRef) AND FIELDNAME(insertRef) = 'Insert' DO    --- fetch description from Insert[] 
+          	IF NOT LENGTH(insertRef.Text) = 1 AND 
+          	    stringValidation(insertRef.Text)THEN
+          		SET messageText = messageText||' '||insertRef.Text;
+          	END IF;
+            MOVE insertRef NEXTSIBLING;
+          END WHILE;
+	  END IF;
+	  MOVE inRef2 LASTCHILD;
+	 END WHILE;
+	 SET exceptionData = exceptionName||':'||messageText;
+	 SET envvar.TraceFileExc.errorType = exceptionName; 
+	 RETURN exceptionData;
+END;
+
+CREATE PROCEDURE stringValidation (IN text CHARACTER)
+RETURNS BOOLEAN
+BEGIN
+	  IF NOT CONTAINS(text, 'Node throwing exception') AND 
+		 NOT CONTAINS(text, 'Caught exception and rethrowing') AND
+		 NOT CONTAINS(text, 'Error detected, rethrowing') AND
+		 NOT CONTAINS(text, 'Error occured in procedure') AND
+		 NOT LENGTH(text) = 1 THEN
+		 
+		  RETURN TRUE;
+	  ELSE
+	  	  RETURN FALSE;
+     END IF;
+END;
+CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+END MODULE;
+
+CREATE FUNCTION getPayloadString (IN bodyRef REFERENCE, IN envarea REFERENCE) RETURNS CHARACTER
+BEGIN
+	--If error occurs capture the original message
+	DECLARE payload CHARACTER CAST(ASBITSTREAM(bodyRef
+	ENCODING 546
+	CCSID 1208)
+	AS CHARACTER);
+	RETURN payload;
+END;

@@ -1,0 +1,6 @@
+BROKER SCHEMA com.unacores.iib
+
+
+CREATE FUNCTION getProperty(IN piServiceName CHAR, IN piPropertyName CHAR) RETURNS CHAR LANGUAGE JAVA EXTERNAL NAME "com.unacores.iib.UDPManager.getProperty";
+
+CREATE FUNCTION getBrokerUUID() RETURNS CHAR LANGUAGE JAVA EXTERNAL NAME "com.unacores.iib.UDPManager.getBrokerUUID";

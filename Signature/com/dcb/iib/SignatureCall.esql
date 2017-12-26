@@ -1,0 +1,5 @@
+BROKER SCHEMA com.dcb.iib
+
+CREATE FUNCTION getSignatureKey(IN jks CHAR,IN pass CHAR,IN key CHAR,IN pan CHAR) RETURNS CHAR LANGUAGE JAVA EXTERNAL NAME "com.dcb.iib.Signature.getSignatureKey";
+
+CREATE FUNCTION encodeData(IN data CHAR,IN sig CHAR) RETURNS CHAR LANGUAGE JAVA EXTERNAL NAME "com.dcb.iib.Signature.encodeData";

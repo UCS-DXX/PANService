@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0"
+    xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmCompute.msgnode="ComIbmCompute.msgnode" xmlns:ComIbmFlowOrder.msgnode="ComIbmFlowOrder.msgnode" xmlns:ComIbmTrace.msgnode="ComIbmTrace.msgnode" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="Common_ExceptionFlow.subflow"
+    nsPrefix="Common_ExceptionFlow.subflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1" useDefaults="true" udpSupport="true">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <eStructuralFeatures xmi:type="ecore:EAttribute" xmi:id="Property.DSNNAME" name="DSNNAME" defaultValueLiteral="ESBDB">
+      <eType xmi:type="ecore:EDataType" href="http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    </eStructuralFeatures>
+    <translation xmi:type="utility:TranslatableString" key="Common_ExceptionFlow" bundleName="Common_ExceptionFlow" pluginId="CommonServices"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/CommonServices/icons/full/obj16/Common_ExceptionFlow.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/CommonServices/icons/full/obj30/Common_ExceptionFlow.gif"/>
+    <composition>
+      <nodes xmi:type="eflow:FCMSource" xmi:id="InTerminal.Input" location="97,92">
+        <translation xmi:type="utility:TranslatableString" key="InTerminal.Input" bundleName="Common_ExceptionFlow" pluginId="CommonServices"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="171,92" computeExpression="esql://routine/CommonExceptions#Common_ExceptionFlow.Main">
+        <translation xmi:type="utility:ConstantString" string="MessageLog"/>
+      </nodes>
+      <nodes xmi:type="ComIbmTrace.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_2" location="368,117" destination="file" filePath="/var/dedupe/log/exc/dedupe_exc.log" pattern="-------------------------------- Start ------------------------------&#xD;&#xA;Broker Name          &#x9;&#x9;:${BrokerName} &#xD;&#xA;EG Name            &#x9;&#x9;:${ExecutionGroupLabel}&#xD;&#xA;MSG flow name        &#x9;:${Environment.Variables.TraceFileExc.flowName}&#xD;&#xA;Node name            &#x9;&#x9;:${Environment.Variables.TraceFileExc.nodeName}&#xD;&#xA;ExcDate              &#x9;&#x9;&#x9;: ${Environment.Variables.TraceFileExc.exceptionTime}&#xD;&#xA;ErrorType&#x9;&#x9;&#x9;&#x9;: ${Environment.Variables.TraceFileExc.errorType}&#xD;&#xA;Exception Description  &#x9;:${Environment.Variables.TraceFileExc.errorCodeDescription}&#xD;&#xA;--------------------------------- End -------------------------------">
+        <translation xmi:type="utility:ConstantString" string="Trace"/>
+      </nodes>
+      <nodes xmi:type="eflow:FCMSink" xmi:id="OutTerminal.Output" location="472,47">
+        <translation xmi:type="utility:TranslatableString" key="OutTerminal.Output" bundleName="Common_ExceptionFlow" pluginId="CommonServices"/>
+      </nodes>
+      <nodes xmi:type="ComIbmCompute.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_6" location="364,46" computeExpression="esql://routine/gen#Fault_Response.Main">
+        <translation xmi:type="utility:ConstantString" string="Fault_Response"/>
+      </nodes>
+      <nodes xmi:type="ComIbmFlowOrder.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="270,93">
+        <translation xmi:type="utility:ConstantString" string="Flow Order"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_1" sourceNode="InTerminal.Input" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="OutTerminal.Output" sourceNode="FCMComposite_1_6" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_7" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_8" targetNode="FCMComposite_1_6" sourceNode="FCMComposite_1_7" sourceTerminalName="OutTerminal.first" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_9" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_7" sourceTerminalName="OutTerminal.second" targetTerminalName="InTerminal.in"/>
+    </composition>
+    <propertyOrganizer>
+      <propertyDescriptor groupName="Group.Basic" configurable="true" userDefined="true" describedAttribute="Property.DSNNAME">
+        <propertyName xmi:type="utility:TranslatableString" key="Property.DSNNAME" bundleName="Common_ExceptionFlow" pluginId="CommonServices"/>
+      </propertyDescriptor>
+    </propertyOrganizer>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>
